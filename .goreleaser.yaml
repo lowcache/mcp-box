@@ -1,10 +1,6 @@
 version: 2
 project_name: mcp-box
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - env:
       - CGO_ENABLED=0
@@ -16,6 +12,9 @@ builds:
       - arm64
     main: ./main.go
     binary: mcp-box
+    hooks:
+      pre:
+        - go mod tidy
 
 archives:
   - format: binary
