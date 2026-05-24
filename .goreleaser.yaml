@@ -3,17 +3,18 @@ project_name: mcp-box
 
 before:
   hooks:
-    - go mod tidy -dir ./src/go
+    - go mod tidy
 
 builds:
   - env:
       - CGO_ENABLED=0
+    dir: ./src/go
     goos:
       - linux
     goarch:
       - amd64
       - arm64
-    main: ./src/go/main.go
+    main: ./main.go
     binary: mcp-box
 
 archives:
