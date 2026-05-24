@@ -153,11 +153,12 @@
           };
         };
 
-        # CLI Wrapper Script Package
-        mcp-box-cli = pkgs.writeShellApplication {
-          name = "mcp-box";
-          runtimeInputs = [ pkgs.bash pkgs.docker pkgs.git ];
-          text = builtins.readFile ./mcp-box;
+        # Go CLI Package
+        mcp-box-cli = pkgs.buildGoModule {
+          pname = "mcp-box";
+          version = "1.0.0";
+          src = ./.;
+          vendorHash = null;
         };
 
       in
