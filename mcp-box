@@ -89,10 +89,22 @@ cmd_run() {
 
     check_docker
 
-    # Auto-build image if not already loaded
+    # Auto-load OCI image if not already present
     if ! docker image inspect "mcp-box-${server}:latest" >/dev/null 2>&1; then
-        echo "Image 'mcp-box-${server}:latest' not found. Auto-building..." >&2
-        cmd_build "$server"
+        if command -v nix >/dev/null 2>&1; then
+            echo "Image 'mcp-box-${server}:latest' not found. Nix detected: Auto-building locally..." >&2
+            cmd_build "$server"
+        else
+            local registry="ghcr.io/lowcache"
+            echo "Image 'mcp-box-${server}:latest' not found. Nix not detected: Pulling from registry ${registry}..." >&2
+            if ! docker pull "${registry}/mcp-box-${server}:latest"; then
+                echo "Error: Failed to pull image from ${registry}/mcp-box-${server}:latest." >&2
+                exit 1
+            fi
+            docker tag "${registry}/mcp-box-${server}:latest" "mcp-box-${server}:latest"
+            docker rmi "${registry}/mcp-box-${server}:latest" >/dev/null 2>&1 || true
+            echo "Successfully loaded registry image." >&2
+        fi
     fi
 
     # Parse arguments

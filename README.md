@@ -17,8 +17,9 @@
    - Containers run mapped to your host UID/GID (`-u $(id -u):$(id -g)`), ensuring that files written to mounted workspaces are owned by you (not `root`) and don't trigger host-side permission errors.
 3. **Painless Integration**:
    - Built-in configuration generator (`mcp-box config <server>`) prints out paste-ready JSON snippets to plug directly into `claude_desktop_config.json` or OpenClaw configurations.
-4. **Hands-off Setup**:
-   - Running a container automatically triggers Nix to build and load the OCI image if it's not already cached inside Docker.
+4. **Zero-Dependency Nix Autonomy**:
+   - If Nix is installed, running a sandbox automatically triggers a local rebuild and load of the OCI image.
+   - If Nix is absent, `mcp-box` automatically detects this and falls back to pulling pre-built, identical, and secure OCI images directly from the GitHub Container Registry (`ghcr.io/lowcache`), making Nix entirely optional for the end-user.
 
 ---
 
