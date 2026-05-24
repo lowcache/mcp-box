@@ -1,6 +1,21 @@
 # mcp-box
 
-**mcp-box** provides turnkey, immutable, and highly-isolated Linux container environments optimized specifically for Model Context Protocol (MCP) servers. By coupling **Nix**'s deterministic building engine with **Docker**'s isolation policies, `mcp-box` completely sandboxes AI agent tool execution, keeping your host system, configurations, and private keys entirely safe from unauthorized access, accidental changes, or malicious exploits.
+**mcp-box** is a highly portable, compiled **Go** executable that provides turnkey, immutable, and highly-isolated Linux container environments optimized specifically for Model Context Protocol (MCP) servers. By coupling **Nix**'s deterministic building engine with **Docker**'s isolation policies, `mcp-box` completely sandboxes AI agent tool execution, keeping your host system, configurations, and private keys entirely safe from unauthorized access, accidental changes, or malicious exploits.
+
+---
+
+## Dependencies
+
+Depending on your installation path, `mcp-box` has distinct dependency requirements:
+
+*   **Runtime Boundary (All Users)**:
+    - **Docker Engine** (Must be active and running locally on the host system).
+*   **Local Image Building (Source Flow with Nix)**:
+    - **Nix** (with experimental `flakes` and `nix-command` enabled).
+*   **CLI Compilation (Source Flow with Go)**:
+    - **Go** compiler v1.22 or higher (only required if building the executable from source without using Nix).
+*   **Zero-Dependency Fallback Flow**:
+    - **None**. The pre-compiled CLI binary runs standalone and automatically pulls identical, signed OCI layers straight from GHCR into your local Docker daemon.
 
 ---
 
@@ -65,13 +80,13 @@ graph TD
 
 ## Installation
 
-Depending on your host environment, you can install and run `mcp-box` with or without Nix.
+Depending on your host environment, you can install and run `mcp-box` with three different avenues:
 
-### Option A: Without Nix (Standard Docker Users)
+### Option A: Pre-built Go Binary (No Nix / Docker-only)
 For systems that only have Docker installed:
-1. **Download the CLI script**:
+1. **Download the compiled CLI binary**:
    ```bash
-   curl -sSL https://raw.githubusercontent.com/lowcache/mcp-box/main/mcp-box -o mcp-box
+   curl -sSL https://github.com/lowcache/mcp-box/releases/latest/download/mcp-box -o mcp-box
    chmod +x mcp-box
    ```
 2. **Move to PATH** (Optional):
@@ -80,7 +95,7 @@ For systems that only have Docker installed:
    ```
 *On first execution, `mcp-box` will automatically detect the absence of Nix and pull the secure pre-built OCI images from `ghcr.io/lowcache` into your local Docker daemon.*
 
-### Option B: With Nix (Pure & Reproducible Builds)
+### Option B: From Source via Nix Flake (Nix/NixOS)
 For systems running Nix/NixOS:
 *   **Run directly without installing**:
     ```bash
@@ -99,7 +114,20 @@ For systems running Nix/NixOS:
     # In systemPackages or home.packages:
     inputs.mcp-box.packages.${pkgs.system}.default
     ```
-*On first execution, `mcp-box` will build the OCI images purely from source and load them directly into your local Docker daemon.*
+*On first execution, `mcp-box` will build the Go binary and OCI images purely from source and load them directly into your local Docker daemon.*
+
+### Option C: Compile from Source (Go Compiler)
+If you want to compile the CLI binary manually without Nix:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/lowcache/mcp-box.git
+   cd mcp-box
+   ```
+2. **Compile the binary**:
+   ```bash
+   go build -o mcp-box
+   ```
+*You can now run `./mcp-box` directly, which will pull OCI layers from the registry or build locally using Nix based on your host environment.*
 
 ---
 
