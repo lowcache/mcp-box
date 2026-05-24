@@ -29,17 +29,25 @@
 graph TD
     subgraph Host [Host Environment]
         Agent[AI Agent / Claude Desktop] <-->|stdio piping| CLI[mcp-box CLI]
-        CLI <-->|docker run| Docker[Docker Engine]
-        Nix[Nix Flake] -->|nix build| OCI[OCI Image Archive]
-        OCI -->|docker load| Docker
+        CLI -->|Checks for Nix| NixDetect{Nix Installed?}
+        
+        NixDetect -->|Yes: Source Flow| NixBuild[nix build .#server]
+        NixBuild -->|Stream tarball| DockerLoad[docker load]
+        
+        NixDetect -->|No: Registry Flow| DockerPull[docker pull ghcr.io]
+        DockerPull -->|Tag locally| DockerLoad
+        
+        DockerLoad -->|Loads image| Docker[Docker Engine]
     end
-    subgraph Sandbox [Docker Container Sandbox]
+    
+    subgraph Sandbox [Docker Sandbox]
         Server[MCP Server]
         Tools[Isolated Tools: git, rg, sqlite3, curl]
         Workspace[Mounted Workspace: /workspace]
     end
-    Docker -->|spawns| Sandbox
-    CLI <-->|stdio| Server
+    
+    Docker -->|spawns with strict isolation| Sandbox
+    CLI <-->|stdio piping| Server
 ```
 
 ---
