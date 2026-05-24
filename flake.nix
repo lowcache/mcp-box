@@ -157,7 +157,7 @@
         mcp-box-cli = pkgs.buildGoModule {
           pname = "mcp-box";
           version = "1.0.0";
-          src = ./.;
+          src = ./src/go;
           vendorHash = null;
         };
 
