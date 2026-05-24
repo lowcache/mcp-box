@@ -1,0 +1,21 @@
+version: 2
+project_name: mcp-box
+
+before:
+  hooks:
+    - go mod tidy -dir ./src/go
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    main: ./src/go/main.go
+    binary: mcp-box
+
+archives:
+  - format: binary
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
