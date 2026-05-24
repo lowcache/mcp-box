@@ -55,6 +55,46 @@ graph TD
 
 ---
 
+## Installation
+
+Depending on your host environment, you can install and run `mcp-box` with or without Nix.
+
+### Option A: Without Nix (Standard Docker Users)
+For systems that only have Docker installed:
+1. **Download the CLI script**:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/lowcache/mcp-box/main/mcp-box -o mcp-box
+   chmod +x mcp-box
+   ```
+2. **Move to PATH** (Optional):
+   ```bash
+   mv mcp-box ~/.local/bin/  # Or another folder in your PATH
+   ```
+*On first execution, `mcp-box` will automatically detect the absence of Nix and pull the secure pre-built OCI images from `ghcr.io/lowcache` into your local Docker daemon.*
+
+### Option B: With Nix (Pure & Reproducible Builds)
+For systems running Nix/NixOS:
+*   **Run directly without installing**:
+    ```bash
+    nix run github:lowcache/mcp-box -- list
+    ```
+*   **Install to your user profile**:
+    ```bash
+    nix profile install github:lowcache/mcp-box
+    ```
+*   **Declarative Installation (NixOS / Home Manager)**:
+    Add the flake input and package to your configuration:
+    ```nix
+    # flake.nix inputs:
+    inputs.mcp-box.url = "github:lowcache/mcp-box";
+    
+    # In systemPackages or home.packages:
+    inputs.mcp-box.packages.${pkgs.system}.default
+    ```
+*On first execution, `mcp-box` will build the OCI images purely from source and load them directly into your local Docker daemon.*
+
+---
+
 ## Usage Guide
 
 ### 1. Show Help & Supported Servers
