@@ -1,0 +1,13 @@
+{
+  "name": "mcp-server-sqlite-sandbox",
+  "version": "1.0.0",
+  "description": "Sandboxed SQLite MCP server",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "mcp-server-sqlite": "./index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server-sqlite": "^0.6.2"
+  }
+}
