@@ -42,7 +42,7 @@ step() {
 }
 
 clear
-printf '\033[1;36m# mcp-box — your AI agent runs its tools in a "locked" box.\n            Where all your sensitive data cannot be accessed or leaked.\033[0m\n'
+printf '\033[1;36m# mcp-box — your AI agent runs its tools in a "locked" box.\n            It never touches your real machine — just the workspace you hand it.\033[0m\n'
 sleep 1
 
 printf '\n\033[1;36m# Need a readable & writable workspace? You chose it:\033[0m\n'
@@ -53,7 +53,7 @@ printf '\n\033[1;36m# Escaping the box is NOT a possibility — the root file sy
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'touch /etc/naughty'
 
-printf '\n\033[1;36m# PLUS it has no network access, so data leaks are impossible:\033[0m\n'
+printf '\n\033[1;36m# PLUS no network by default, so a tool has nowhere to send your data:\033[0m\n'
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'curl -sS -m 5 https://example.com'
 
