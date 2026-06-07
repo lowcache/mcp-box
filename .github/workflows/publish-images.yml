@@ -1,0 +1,135 @@
+name: Publish Images
+
+# Builds the four sandbox OCI images with Nix and pushes multi-arch (linux/amd64
+# + linux/arm64) manifests to GHCR, so the Docker-only "no Nix needed" path in the
+# README actually works:  docker pull ghcr.io/<owner>/mcp-box-<server>
+#
+# Runs automatically on a release tag, and can be triggered manually
+# (workflow_dispatch) to (re)publish a given version — e.g. to backfill images for
+# an already-cut release.
+#
+# NOTE: GHCR packages are created PRIVATE on first push. After the first
+# successful run, set each mcp-box-<server> package to Public once (GitHub →
+# your packages → Package settings → Change visibility), or via:
+#   gh api -X PATCH /user/packages/container/mcp-box-<server>/visibility -f visibility=public
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (without leading v, e.g. 1.0.1)'
+        required: true
+        default: '1.0.1'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SERVERS: "sqlite shell filesystem fetch"
+
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      owner: ${{ steps.ver.outputs.owner }}
+    steps:
+      - id: ver
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "owner=$owner"     >> "$GITHUB_OUTPUT"
+          echo "Publishing version '$version' to ghcr.io/$owner"
+
+  build:
+    needs: prep
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+            nixsys: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            nixsys: aarch64-linux
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push per-arch images
+        env:
+          VERSION: ${{ needs.prep.outputs.version }}
+          OWNER: ${{ needs.prep.outputs.owner }}
+          NIXSYS: ${{ matrix.nixsys }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          for server in $SERVERS; do
+            echo "::group::build $server ($ARCH)"
+            # streamLayeredImage produces an executable that writes a
+            # docker-archive tarball to stdout; load it, then push a per-arch tag.
+            img="$(nix build --no-link --print-out-paths ".#packages.${NIXSYS}.${server}")"
+            "$img" | docker load
+            ref="ghcr.io/${OWNER}/mcp-box-${server}:${VERSION}-${ARCH}"
+            docker tag "mcp-box-${server}:latest" "$ref"
+            docker push "$ref"
+            # keep the daemon lean across the four builds
+            docker image rm "$ref" "mcp-box-${server}:latest" >/dev/null 2>&1 || true
+            echo "::endgroup::"
+          done
+
+  manifest:
+    needs: [prep, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch manifest lists
+        env:
+          VERSION: ${{ needs.prep.outputs.version }}
+          OWNER: ${{ needs.prep.outputs.owner }}
+        run: |
+          set -euo pipefail
+          for server in $SERVERS; do
+            repo="ghcr.io/${OWNER}/mcp-box-${server}"
+            echo "::group::manifest $server"
+            # Combine the per-arch tags into one multi-arch tag for :VERSION and :latest.
+            docker buildx imagetools create \
+              -t "${repo}:${VERSION}" \
+              -t "${repo}:latest" \
+              "${repo}:${VERSION}-amd64" \
+              "${repo}:${VERSION}-arm64"
+            docker buildx imagetools inspect "${repo}:latest"
+            echo "::endgroup::"
+          done

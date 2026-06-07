@@ -44,7 +44,7 @@ Depending on your installation path, `mcp-box` has distinct dependency requireme
 *   **CLI Compilation (Source Flow with Go)**:
     - **Go** compiler v1.22 or higher (only required if building the executable from source without using Nix).
 *   **Zero-Dependency Fallback Flow**:
-    - **None**. The pre-compiled CLI binary runs standalone and automatically pulls identical, signed OCI layers straight from GHCR into your local Docker daemon.
+    - **None**. The pre-compiled CLI binary runs standalone and automatically pulls the pre-built, multi-arch OCI images straight from GHCR into your local Docker daemon.
 
 ---
 
@@ -122,7 +122,7 @@ For systems that only have Docker installed:
    ```bash
    mv mcp-box ~/.local/bin/  # Or another folder in your PATH
    ```
-*On first execution, `mcp-box` will automatically detect the absence of Nix and pull the secure pre-built OCI images from `ghcr.io/lowcache` into your local Docker daemon.*
+*On first execution, `mcp-box` will automatically detect the absence of Nix and pull the pre-built OCI images from `ghcr.io/lowcache` into your local Docker daemon.*
 
 ### Option B: From Source via Nix Flake (Nix/NixOS)
 For systems running Nix/NixOS:
