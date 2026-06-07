@@ -1,6 +1,33 @@
 # mcp-box
 
-**mcp-box** is a highly portable, compiled **Go** executable that provides turnkey, immutable, and highly-isolated Linux container environments optimized specifically for Model Context Protocol (MCP) servers. By coupling **Nix**'s deterministic building engine with **Docker**'s isolation policies, `mcp-box` completely sandboxes AI agent tool execution, keeping your host system, configurations, and private keys entirely safe from unauthorized access, accidental changes, or malicious exploits.
+[![CI](https://github.com/lowcache/mcp-box/actions/workflows/ci.yml/badge.svg)](https://github.com/lowcache/mcp-box/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg)](src/go/go.mod)
+
+> **Your AI agent's tools run with your permissions.** When an MCP server can call `run_command` or
+> write files, a buggy prompt or a malicious instruction can reach your home directory, your SSH keys,
+> and your cloud credentials. `mcp-box` puts every MCP server inside a locked-down, read-only,
+> network-isolated Docker sandbox — so the worst a tool can do is scribble inside a folder *you* chose.
+
+**mcp-box** is a single, portable **Go** binary that launches turnkey, immutable, strictly-isolated
+container sandboxes for Model Context Protocol (MCP) servers. Nix is used for deterministic image
+builds when present, but it is **entirely optional** — without it, `mcp-box` pulls identical prebuilt
+images straight from GHCR. Docker is the only hard requirement.
+
+## Quickstart
+
+```bash
+# 1. Get the binary (Docker is the only dependency)
+curl -sSL https://github.com/lowcache/mcp-box/releases/latest/download/mcp-box-linux-amd64 -o mcp-box
+chmod +x mcp-box && mv mcp-box ~/.local/bin/
+
+# 2. Prove the sandbox holds — this write MUST fail
+mcp-box run shell --workspace /tmp/demo -- --tool run_command "touch /etc/naughty"
+# => touch: cannot touch '/etc/naughty': Read-only file system
+
+# 3. Wire it into your AI client (paste the output into claude_desktop_config.json)
+mcp-box config sqlite
+```
 
 ---
 
@@ -84,9 +111,9 @@ Depending on your host environment, you can install and run `mcp-box` with three
 
 ### Option A: Pre-built Go Binary (No Nix / Docker-only)
 For systems that only have Docker installed:
-1. **Download the compiled CLI binary**:
+1. **Download the compiled CLI binary** (pick the asset matching your OS/arch — `linux`/`darwin`, `amd64`/`arm64`):
    ```bash
-   curl -sSL https://github.com/lowcache/mcp-box/releases/latest/download/mcp-box -o mcp-box
+   curl -sSL https://github.com/lowcache/mcp-box/releases/latest/download/mcp-box-linux-amd64 -o mcp-box
    chmod +x mcp-box
    ```
 2. **Move to PATH** (Optional):
@@ -123,9 +150,10 @@ If you want to compile the CLI binary manually without Nix:
    git clone https://github.com/lowcache/mcp-box.git
    cd mcp-box
    ```
-2. **Compile the binary**:
+2. **Compile the binary** (the Go module lives in `src/go`):
    ```bash
-   go build -o mcp-box
+   cd src/go
+   go build -o ../../mcp-box .
    ```
 *You can now run `./mcp-box` directly, which will pull OCI layers from the registry or build locally using Nix based on your host environment.*
 

@@ -104,6 +104,63 @@ func cmdBuild(server string) error {
 	return nil
 }
 
+// runConfig holds the parsed result of the `run` subcommand's options.
+type runConfig struct {
+	workspace  string
+	network    string
+	envs       []string
+	serverArgs []string
+}
+
+// defaultNetwork returns the default network mode for a given server.
+// Every server is network-isolated by default except `fetch`, whose entire
+// purpose is web access.
+func defaultNetwork(server string) string {
+	if server == "fetch" {
+		return "bridge"
+	}
+	return "none"
+}
+
+// parseRunArgs parses the option list passed after `run <server>`. It is kept
+// free of side effects (no filesystem/docker access) so it can be unit tested.
+// The workspace path is returned verbatim; absolute-path resolution and
+// directory creation happen at execution time in cmdRun.
+func parseRunArgs(server string, runArgs []string) (runConfig, error) {
+	cfg := runConfig{network: defaultNetwork(server)}
+
+	for i := 0; i < len(runArgs); i++ {
+		arg := runArgs[i]
+		switch arg {
+		case "-w", "--workspace":
+			if i+1 >= len(runArgs) {
+				return runConfig{}, fmt.Errorf("error: workspace requires an argument")
+			}
+			cfg.workspace = runArgs[i+1]
+			i++
+		case "-n", "--network":
+			if i+1 >= len(runArgs) {
+				return runConfig{}, fmt.Errorf("error: network requires an argument")
+			}
+			cfg.network = runArgs[i+1]
+			i++
+		case "-e", "--env":
+			if i+1 >= len(runArgs) {
+				return runConfig{}, fmt.Errorf("error: env requires an argument")
+			}
+			cfg.envs = append(cfg.envs, runArgs[i+1])
+			i++
+		case "--":
+			cfg.serverArgs = runArgs[i+1:]
+			return cfg, nil
+		default:
+			return runConfig{}, fmt.Errorf("error: unknown run option: %s", arg)
+		}
+	}
+
+	return cfg, nil
+}
+
 func cmdRun(server string, runArgs []string) error {
 	if !isSupportedServer(server) {
 		return fmt.Errorf("unknown MCP server: '%s'", server)
@@ -152,46 +209,9 @@ func cmdRun(server string, runArgs []string) error {
 	}
 
 	// Parse arguments manually to guarantee double-dash (--) argument piping
-	var workspace string
-	var network string
-	if server == "fetch" {
-		network = "bridge"
-	} else {
-		network = "none"
-	}
-	var envs []string
-	var serverArgs []string
-
-	for i := 0; i < len(runArgs); i++ {
-		arg := runArgs[i]
-		if arg == "-w" || arg == "--workspace" {
-			if i+1 >= len(runArgs) {
-				return fmt.Errorf("error: workspace requires an argument")
-			}
-			absPath, err := filepath.Abs(runArgs[i+1])
-			if err != nil {
-				return fmt.Errorf("failed to resolve workspace path: %w", err)
-			}
-			workspace = absPath
-			i++
-		} else if arg == "-n" || arg == "--network" {
-			if i+1 >= len(runArgs) {
-				return fmt.Errorf("error: network requires an argument")
-			}
-			network = runArgs[i+1]
-			i++
-		} else if arg == "-e" || arg == "--env" {
-			if i+1 >= len(runArgs) {
-				return fmt.Errorf("error: env requires an argument")
-			}
-			envs = append(envs, runArgs[i+1])
-			i++
-		} else if arg == "--" {
-			serverArgs = runArgs[i+1:]
-			break
-		} else {
-			return fmt.Errorf("error: unknown run option: %s", arg)
-		}
+	cfg, err := parseRunArgs(server, runArgs)
+	if err != nil {
+		return err
 	}
 
 	// Build Docker execution arguments
@@ -204,22 +224,26 @@ func cmdRun(server string, runArgs []string) error {
 		"--cap-drop=ALL",
 		"--security-opt", "no-new-privileges:true",
 		"--user", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
-		"--network", network,
+		"--network", cfg.network,
 	}
 
-	if workspace != "" {
-		if err := os.MkdirAll(workspace, 0755); err != nil {
+	if cfg.workspace != "" {
+		absPath, err := filepath.Abs(cfg.workspace)
+		if err != nil {
+			return fmt.Errorf("failed to resolve workspace path: %w", err)
+		}
+		if err := os.MkdirAll(absPath, 0755); err != nil {
 			return fmt.Errorf("failed to create workspace directory: %w", err)
 		}
-		dockerArgs = append(dockerArgs, "--mount", fmt.Sprintf("type=bind,source=%s,target=/workspace", workspace))
+		dockerArgs = append(dockerArgs, "--mount", fmt.Sprintf("type=bind,source=%s,target=/workspace", absPath))
 	}
 
-	for _, env := range envs {
+	for _, env := range cfg.envs {
 		dockerArgs = append(dockerArgs, "-e", env)
 	}
 
 	dockerArgs = append(dockerArgs, imageName)
-	dockerArgs = append(dockerArgs, serverArgs...)
+	dockerArgs = append(dockerArgs, cfg.serverArgs...)
 
 	// Execute Docker sandbox and directly forward all standard input/output streams
 	cmd := exec.Command("docker", dockerArgs...)
@@ -281,7 +305,8 @@ func cmdConfig(server string) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	fmt.Println("Add the following snippet to your 'claude_desktop_config.json' or equivalent AI client configuration:\n")
+	fmt.Println("Add the following snippet to your 'claude_desktop_config.json' or equivalent AI client configuration:")
+	fmt.Println()
 	fmt.Println(string(bytes))
 	return nil
 }

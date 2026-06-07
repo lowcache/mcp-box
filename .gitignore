@@ -1,0 +1,21 @@
+# Compiled CLI binary — distributed via GitHub Releases, never committed.
+/mcp-box
+/src/go/mcp-box
+mcp-box-*-*
+
+# Go
+*.test
+*.out
+
+# Nix
+result
+result-*
+
+# Editor / OS cruft
+*.swp
+.DS_Store
+
+# Local agent working memory — candid internal strategy notes, kept out of the
+# public repo. Persist on disk, never published. Remove these lines to track them.
+/.memory/
+/.model/

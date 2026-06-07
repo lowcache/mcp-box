@@ -1,0 +1,11 @@
+# Help GitHub Linguist report the primary language correctly.
+# The user-facing tool is the Go CLI; the legacy Bash wrapper (superseded by
+# the Go binary, see .memory/decisions.md D1) should not count toward stats.
+src/sh/mcp-box.sh linguist-vendored
+
+# Generated / lock files are not authored source.
+flake.lock linguist-generated
+src/sqlite/package.json linguist-generated
+
+# Treat any stray prebuilt binary as binary, not source.
+mcp-box binary
