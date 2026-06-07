@@ -42,20 +42,20 @@ step() {
 }
 
 clear
-printf '\033[1;36m# mcp-box — your AI agent runs its tools in a locked box.\033[0m\n'
+printf '\033[1;36m# mcp-box — your AI agent runs its tools in a "locked" box.\n            Where all your sensitive data cannot be accessed or leaked.\033[0m\n'
 sleep 1
 
-printf '\n\033[1;36m# A writable workspace IS allowed (you chose it):\033[0m\n'
+printf '\n\033[1;36m# Need a readable & writable workspace? You chose it:\033[0m\n'
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'echo hello > /workspace/ok.txt && cat /workspace/ok.txt'
 
-printf '\n\033[1;36m# Escaping the box is NOT — the root FS is read-only:\033[0m\n'
+printf '\n\033[1;36m# Escaping the box is NOT a possibility — the root file system is read-only:\033[0m\n'
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'touch /etc/naughty'
 
-printf '\n\033[1;36m# And it has no network, so it cannot send your data anywhere:\033[0m\n'
+printf '\n\033[1;36m# PLUS it has no network access, so data leaks are impossible:\033[0m\n'
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'curl -sS -m 5 https://example.com'
 
-printf '\n\033[1;32m# Your host, configs, and keys never came into reach.\033[0m\n'
+printf '\n\033[1;32m# Your host, configs, and keys stay untouched & out of reach.\033[0m\n'
 sleep 1

@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg)](src/go/go.mod)
 
+![mcp-box sandbox demo](docs/demo.gif)
+
 > **Your AI agent's tools run with your permissions.** When an MCP server can call `run_command` or
 > write files, a buggy prompt or a malicious instruction can reach your home directory, your SSH keys,
 > and your cloud credentials. `mcp-box` puts every MCP server inside a locked-down, read-only,
