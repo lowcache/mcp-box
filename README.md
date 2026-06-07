@@ -22,7 +22,7 @@ curl -sSL https://github.com/lowcache/mcp-box/releases/latest/download/mcp-box-l
 chmod +x mcp-box && mv mcp-box ~/.local/bin/
 
 # 2. Prove the sandbox holds — this write MUST fail
-mcp-box run shell --workspace /tmp/demo -- --tool run_command "touch /etc/naughty"
+mcp-box run shell --workspace /tmp/demo -- bash -c 'touch /etc/naughty'
 # => touch: cannot touch '/etc/naughty': Read-only file system
 
 # 3. Wire it into your AI client (paste the output into claude_desktop_config.json)
@@ -190,20 +190,28 @@ Copy the printed snippet and add it to your configuration file (typically `~/.co
 
 ## Security Audit Checks
 
-To verify that your sandbox is indeed perfectly secure and isolated:
+You can audit the sandbox boundary directly by overriding the container command
+with `-- bash -c '...'`. The hardening (read-only root, no network, dropped
+capabilities, host UID mapping) applies to *any* process in the box, so these
+checks prove the boundary that wraps the MCP server:
 
-1. **Check Read-Only Filesystem**:
+1. **Read-only filesystem** — writes outside `/workspace` are rejected:
    ```bash
-   ./mcp-box run shell --workspace /tmp/test-space -- --tool run_command "touch /etc/naughty"
-   # Output should fail: "touch: cannot touch '/etc/naughty': Read-only file system"
+   ./mcp-box run shell -- bash -c 'touch /etc/naughty'
+   # => touch: cannot touch '/etc/naughty': Read-only file system   (exit 1)
    ```
-2. **Check Network Isolation**:
+2. **Network isolation** — with the default `--network none`, DNS/egress fail:
    ```bash
-   ./mcp-box run shell --workspace /tmp/test-space -- --tool run_command "curl -I https://google.com"
-   # Output should fail due to network resolution issues.
+   ./mcp-box run shell -- bash -c 'curl -I https://google.com'
+   # => curl: (6) Could not resolve host: google.com               (exit 6)
    ```
-3. **Check Privilege Escalation Block**:
+3. **No privilege escalation** — `sudo` is not even present in the image:
    ```bash
-   ./mcp-box run shell --workspace /tmp/test-space -- --tool run_command "sudo -l"
-   # Output should fail: "sudo: command not found" or "sudo: must be setuid root"
+   ./mcp-box run shell -- bash -c 'sudo -l'
+   # => bash: line 1: sudo: command not found                       (exit 127)
+   ```
+4. **Host UID/GID mapping** — the process is *you*, not root:
+   ```bash
+   ./mcp-box run shell -- bash -c 'id'
+   # => uid=<your uid> gid=<your gid> ...   (files in /workspace are owned by you)
    ```

@@ -11,6 +11,11 @@ mcp-box-*-*
 result
 result-*
 
+# asciinema recording artifacts — keep the final GIF under docs/, not the raw
+# cast or a stray root-level gif.
+*.cast
+/demo.gif
+
 # Editor / OS cruft
 *.swp
 .DS_Store
