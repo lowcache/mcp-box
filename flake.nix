@@ -6,8 +6,14 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
 
@@ -46,14 +52,19 @@
               sqlite-server-pkg
             ];
             config = {
-              Cmd = [ "python3" "/app/server.py" ];
+              Cmd = [
+                "python3"
+                "/app/server.py"
+              ];
               Env = [
-                "PATH=${pkgs.lib.makeBinPath [
-                  (pkgs.python3.withPackages (ps: [ ps.fastmcp ]))
-                  pkgs.sqlite
-                  pkgs.bash
-                  pkgs.coreutils
-                ]}"
+                "PATH=${
+                  pkgs.lib.makeBinPath [
+                    (pkgs.python3.withPackages (ps: [ ps.fastmcp ]))
+                    pkgs.sqlite
+                    pkgs.bash
+                    pkgs.coreutils
+                  ]
+                }"
                 "SQLITE_DB_PATH=/workspace/db.sqlite"
               ];
               WorkingDir = "/workspace";
@@ -79,21 +90,26 @@
               shell-server-pkg
             ];
             config = {
-              Cmd = [ "python3" "/app/server.py" ];
+              Cmd = [
+                "python3"
+                "/app/server.py"
+              ];
               Env = [
-                "PATH=${pkgs.lib.makeBinPath [
-                  (pkgs.python3.withPackages (ps: [ ps.fastmcp ]))
-                  pkgs.bashInteractive
-                  pkgs.coreutils
-                  pkgs.ripgrep
-                  pkgs.fd
-                  pkgs.git
-                  pkgs.curl
-                  pkgs.jq
-                  pkgs.sqlite
-                  pkgs.gnutar
-                  pkgs.gzip
-                ]}"
+                "PATH=${
+                  pkgs.lib.makeBinPath [
+                    (pkgs.python3.withPackages (ps: [ ps.fastmcp ]))
+                    pkgs.bashInteractive
+                    pkgs.coreutils
+                    pkgs.ripgrep
+                    pkgs.fd
+                    pkgs.git
+                    pkgs.curl
+                    pkgs.jq
+                    pkgs.sqlite
+                    pkgs.gnutar
+                    pkgs.gzip
+                  ]
+                }"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               ];
               WorkingDir = "/workspace";
@@ -112,16 +128,21 @@
               pkgs.coreutils
             ];
             config = {
-              Cmd = [ "mcp-server-filesystem" "/workspace" ];
+              Cmd = [
+                "mcp-server-filesystem"
+                "/workspace"
+              ];
               Env = [
-                "PATH=${pkgs.lib.makeBinPath [
-                  pkgs.mcp-server-filesystem
-                  pkgs.ripgrep
-                  pkgs.fd
-                  pkgs.git
-                  pkgs.bash
-                  pkgs.coreutils
-                ]}"
+                "PATH=${
+                  pkgs.lib.makeBinPath [
+                    pkgs.mcp-server-filesystem
+                    pkgs.ripgrep
+                    pkgs.fd
+                    pkgs.git
+                    pkgs.bash
+                    pkgs.coreutils
+                  ]
+                }"
               ];
               WorkingDir = "/workspace";
             };
@@ -140,12 +161,14 @@
             config = {
               Cmd = [ "mcp-server-fetch" ];
               Env = [
-                "PATH=${pkgs.lib.makeBinPath [
-                  pkgs.mcp-server-fetch
-                  pkgs.bash
-                  pkgs.coreutils
-                  pkgs.curl
-                ]}"
+                "PATH=${
+                  pkgs.lib.makeBinPath [
+                    pkgs.mcp-server-fetch
+                    pkgs.bash
+                    pkgs.coreutils
+                    pkgs.curl
+                  ]
+                }"
                 "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               ];
               WorkingDir = "/workspace";
@@ -156,7 +179,7 @@
         # Go CLI Package
         mcp-box-cli = pkgs.buildGoModule {
           pname = "mcp-box";
-          version = "1.0.0";
+          version = "1.0.1";
           src = ./src/go;
           vendorHash = null;
         };
@@ -167,7 +190,8 @@
         packages = {
           default = mcp-box-cli;
           mcp-box = mcp-box-cli;
-        } // images;
+        }
+        // images;
       }
     );
 }
