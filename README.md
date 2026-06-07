@@ -182,11 +182,43 @@ If you want to manually rebuild or force-update a Nix-built image:
 ```
 
 ### 4. Integration with AI Clients
-To hook `mcp-box` into an AI client like Claude Desktop, generate the JSON config snippet:
+
+`mcp-box config <server>` prints a ready-to-paste `mcpServers` JSON block (with an
+absolute path to the binary). The same block works for both Claude Desktop and
+Claude Code.
+
 ```bash
 ./mcp-box config sqlite
 ```
-Copy the printed snippet and add it to your configuration file (typically `~/.config/Claude/claude_desktop_config.json`).
+
+#### Claude Code (CLI)
+
+Claude Code does **not** use `claude_desktop_config.json`. Add the server with one
+command — note the nested `--` (the first separates `claude`'s flags from the
+subprocess; the second is consumed by `mcp-box` to forward server args):
+
+```bash
+# user scope (available in every project); drop -s user for the current project only
+claude mcp add -s user mcp-box-sqlite -- \
+  mcp-box run sqlite --workspace /abs/path/to/workspace -- --db /workspace/db.sqlite
+```
+
+Or, to commit a shareable config to your repo, drop the `mcp-box config` JSON block
+straight into a project-root **`.mcp.json`** — it uses the exact `{"mcpServers": …}`
+shape that `config` emits.
+
+Verify with `claude mcp list`.
+
+#### Claude Desktop
+
+Paste the `config` block into `claude_desktop_config.json`. Its location is
+OS-specific:
+
+| OS | Path |
+| :--- | :--- |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
 
 ---
 
