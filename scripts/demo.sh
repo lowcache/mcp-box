@@ -53,7 +53,7 @@ printf '\n\033[1;36m# Escaping the box is NOT — the root FS is read-only:\033[
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'touch /etc/naughty'
 
-printf '\n\033[1;36m# And there is no network to phone home over:\033[0m\n'
+printf '\n\033[1;36m# And it has no network, so it cannot send your data anywhere:\033[0m\n'
 step "$MCP_BOX" run shell --workspace "$WORKDIR" -- \
   bash -c 'curl -sS -m 5 https://example.com'
 
