@@ -8,10 +8,13 @@ name: Publish Images
 # (workflow_dispatch) to (re)publish a given version — e.g. to backfill images for
 # an already-cut release.
 #
-# NOTE: GHCR packages are created PRIVATE on first push. After the first
-# successful run, set each mcp-box-<server> package to Public once (GitHub →
-# your packages → Package settings → Change visibility), or via:
-#   gh api -X PATCH /user/packages/container/mcp-box-<server>/visibility -f visibility=public
+# NOTE: GHCR packages may be created PRIVATE on first push. If so, set each
+# mcp-box-<server> package to Public once via the web UI:
+#   github.com/users/<owner>/packages -> select package -> Package settings ->
+#   Danger Zone -> Change visibility -> Public.
+# (There is no REST endpoint to change user-package visibility; this is UI-only.)
+# Verify it's public with an unauthenticated:
+#   docker buildx imagetools inspect ghcr.io/<owner>/mcp-box-<server>:latest
 
 on:
   push:
