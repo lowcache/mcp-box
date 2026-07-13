@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk go *)",
+      "Bash(/tmp/mcp-box-test list *)"
+    ]
+  }
+}
