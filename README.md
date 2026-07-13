@@ -6,15 +6,86 @@
 
 ![mcp-box sandbox demo](docs/demo.gif)
 
-> **Your AI agent's tools run with your permissions.** When an MCP server can call `run_command` or
-> write files, a buggy prompt or a malicious instruction can reach your home directory, your SSH keys,
-> and your cloud credentials. `mcp-box` puts every MCP server inside a locked-down, read-only,
-> network-isolated Docker sandbox — so the worst a tool can do is scribble inside a folder *you* chose.
+**Your AI agent's tools run with your permissions.** When an MCP server can call `run_command` or write files, 
+a buggy prompt or a malicious instruction can reach your home directory, your SSH keys, and your cloud credentials. 
+`mcp-box` puts every MCP server inside a locked-down Docker sandbox with a read-only root filesystem, explicit writable mounts, 
+dropped Linux capabilities, and per-profile network policy. Only the folders you mount are writable; the rest of your host stays out of reach.
+
+> ### mcp-box is the boringly reliable way to run MCP servers safely: inspectable, reproducible, and default-deny by design.
 
 **mcp-box** is a single, portable **Go** binary that launches turnkey, immutable, strictly-isolated
-container sandboxes for Model Context Protocol (MCP) servers. Nix is used for deterministic image
-builds when present, but it is **entirely optional** — without it, `mcp-box` pulls identical prebuilt
-images straight from GHCR. Docker is the only hard requirement.
+container sandboxes for Model Context Protocol (MCP) servers. Nix is used for deterministic image builds 
+when present, but it is **entirely optional**. Without Nix, `mcp-box` pulls the same pinned OCI image definitions
+from GHCR and runs them under the same Docker isolation model. Docker is the only hard requirement.
+
+> ### Same server, same hardening, same sandbox boundary — only the image source changes.
+
+
+## Security Audit Checks
+
+You can audit the sandbox boundary directly by overriding the container command with -- bash -c '...'. 
+These checks prove the boundary itself, not just the MCP server running inside it. 
+The hardening (read-only root, no network, dropped capabilities, host UID mapping) applies to *any* process in the box:
+
+1. **Read-only filesystem** — writes outside `/workspace` are rejected:
+   ```bash
+   ./mcp-box run shell -- bash -c 'touch /etc/naughty'
+   # => touch: cannot touch '/etc/naughty': Read-only file system   (exit 1)
+   ```
+2. **Network isolation** — with the default `--network none`, DNS/egress fail:
+   ```bash
+   ./mcp-box run shell -- bash -c 'curl -I https://google.com'
+   # => curl: (6) Could not resolve host: google.com               (exit 6)
+   ```
+3. **No privilege escalation** — `sudo` is not even present in the image:
+   ```bash
+   ./mcp-box run shell -- bash -c 'sudo -l'
+   # => bash: line 1: sudo: command not found                       (exit 127)
+   ```
+4. **Host UID/GID mapping** — the process is *you*, not root:
+   ```bash
+   ./mcp-box run shell -- bash -c 'id'
+   # => uid=<your uid> gid=<your gid> ...   (files in /workspace are owned by you)
+   ```
+
+---
+
+## Key Features
+
+1. **Strict Sandboxing**:
+   - **Immutable Root (`--read-only`)**: The entire root filesystem is mounted read-only.
+   - **Transient State (`--tmpfs`)**: Writable spaces (`/tmp` and `/run`) exist solely in RAM and disappear once the container stops.
+   - **Zero Capabilities (`--cap-drop=ALL`)**: The running processes have no special Linux kernel capabilities.
+   - **No Privilege Escalation (`no-new-privileges:true`)**: Prevents elevation to root inside the sandbox.
+   - **Per-Profile Network Policy**:
+      - Most sandboxes default to `--network none`.
+      - Networked profiles are explicit and opt-in, so a server only gets egress when its job genuinely requires it.
+      - The `fetch` profile is the exception by design: it uses a controlled network mode for web access, while still keeping the container boundary intact.
+   - **Scoped Workspaces**: Only specifically mounted host directories (`--workspace`) are visible to the server at `/workspace`.
+2. **Correct File Ownership**:
+   - Containers run mapped to your host UID/GID (`-u $(id -u):$(id -g)`), ensuring that files written to mounted workspaces are owned by you (not `root`) and don't trigger host-side permission errors.
+3. **Painless Integration**:
+   - Built-in configuration generator (`mcp-box config <server>`) prints out paste-ready JSON snippets to plug directly into `claude_desktop_config.json` or OpenClaw configurations.
+4. **Zero-Dependency Nix Autonomy**:
+   - If Nix is installed, running a sandbox automatically triggers a local rebuild and load of the OCI image.
+   - If Nix is absent, `mcp-box` automatically detects this and falls back to pulling pre-built, identical, and secure OCI images directly from the GitHub Container Registry (`ghcr.io/lowcache`), making Nix entirely optional for the end-user.
+
+---
+
+## CLI Surface
+
+`mcp-box` is designed to be inspectable, scriptable, and auditable.
+
+- `mcp-box run <server>` — launch a sandboxed MCP server
+- `mcp-box stop <id>` — stop a running sandbox
+- `mcp-box ps` — list active sandboxes
+- `mcp-box inspect <id>` — show the full sandbox spec and policy
+- `mcp-box logs <id>` — read audit logs
+- `mcp-box logs --follow` — stream live events
+- `mcp-box config <server>` — print paste-ready client config
+- `mcp-box build <server>` — rebuild or refresh an OCI image
+
+---
 
 ## Quickstart
 
@@ -33,6 +104,30 @@ mcp-box config sqlite
 
 ---
 
+## Pre-Packaged Sandboxes
+
+| Server Name | Language | Included Utilities | Network Mode | Primary Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **`sqlite`** | Python | `sqlite3` CLI, `fastmcp` SDK | `none` | High-performance, isolated database querying. |
+| **`shell`** | Python | `bash`, `ripgrep`, `fd`, `git`, `curl`, `jq`, `sqlite`, `tar` | `none` | Safe, sandboxed script running and file operations. |
+| **`filesystem`** | Node.js | `ripgrep`, `fd`, `git` | `none` | Scoped filesystem read/write and code searching. |
+| **`fetch`** | Node.js | `curl` | `bridge` | Safe, isolated web fetching and scraping. |
+
+---
+
+## Policy, Compose, and Auditability
+
+`mcp-box` is not just a runner — it is a trust layer for MCP execution.
+
+Planned core platform features:
+- **Policy profiles** for common trust levels: `readonly`, `dev`, `trusted`, `internet-off`, `internet-on`
+- **Compose-style specs** for multi-server setups
+- **Append-only audit logs** for sandbox lifecycle and denied actions
+- **`ps` / `inspect` / `logs`** so every sandbox can be checked after launch
+- **Pinned image digests** for reproducible, reviewable execution
+
+---
+
 ## Dependencies
 
 Depending on your installation path, `mcp-box` has distinct dependency requirements:
@@ -45,25 +140,6 @@ Depending on your installation path, `mcp-box` has distinct dependency requireme
     - **Go** compiler v1.22 or higher (only required if building the executable from source without using Nix).
 *   **Zero-Dependency Fallback Flow**:
     - **None**. The pre-compiled CLI binary runs standalone and automatically pulls the pre-built, multi-arch OCI images straight from GHCR into your local Docker daemon.
-
----
-
-## Key Features
-
-1. **Strict Sandboxing**:
-   - **Immutable Root (`--read-only`)**: The entire root filesystem is mounted read-only.
-   - **Transient State (`--tmpfs`)**: Writable spaces (`/tmp` and `/run`) exist solely in RAM and disappear once the container stops.
-   - **Zero Capabilities (`--cap-drop=ALL`)**: The running processes have no special Linux kernel capabilities.
-   - **No Privilege Escalation (`no-new-privileges:true`)**: Prevents elevation to root inside the sandbox.
-   - **Strict Network Policies (`--network none`)**: Servers like `sqlite`, `shell`, and `filesystem` have absolutely zero internet access by default.
-   - **Scoped Workspaces**: Only specifically mounted host directories (`--workspace`) are visible to the server at `/workspace`.
-2. **Correct File Ownership**:
-   - Containers run mapped to your host UID/GID (`-u $(id -u):$(id -g)`), ensuring that files written to mounted workspaces are owned by you (not `root`) and don't trigger host-side permission errors.
-3. **Painless Integration**:
-   - Built-in configuration generator (`mcp-box config <server>`) prints out paste-ready JSON snippets to plug directly into `claude_desktop_config.json` or OpenClaw configurations.
-4. **Zero-Dependency Nix Autonomy**:
-   - If Nix is installed, running a sandbox automatically triggers a local rebuild and load of the OCI image.
-   - If Nix is absent, `mcp-box` automatically detects this and falls back to pulling pre-built, identical, and secure OCI images directly from the GitHub Container Registry (`ghcr.io/lowcache`), making Nix entirely optional for the end-user.
 
 ---
 
@@ -93,17 +169,6 @@ graph TD
     Docker -->|spawns with strict isolation| Sandbox
     CLI <-->|stdio piping| Server
 ```
-
----
-
-## Pre-Packaged Sandboxes
-
-| Server Name | Language | Included Utilities | Network Mode | Primary Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **`sqlite`** | Python | `sqlite3` CLI, `fastmcp` SDK | `none` | High-performance, isolated database querying. |
-| **`shell`** | Python | `bash`, `ripgrep`, `fd`, `git`, `curl`, `jq`, `sqlite`, `tar` | `none` | Safe, sandboxed script running and file operations. |
-| **`filesystem`** | Node.js | `ripgrep`, `fd`, `git` | `none` | Scoped filesystem read/write and code searching. |
-| **`fetch`** | Node.js | `curl` | `bridge` | Safe, isolated web fetching and scraping. |
 
 ---
 
@@ -222,30 +287,3 @@ OS-specific:
 
 ---
 
-## Security Audit Checks
-
-You can audit the sandbox boundary directly by overriding the container command
-with `-- bash -c '...'`. The hardening (read-only root, no network, dropped
-capabilities, host UID mapping) applies to *any* process in the box, so these
-checks prove the boundary that wraps the MCP server:
-
-1. **Read-only filesystem** — writes outside `/workspace` are rejected:
-   ```bash
-   ./mcp-box run shell -- bash -c 'touch /etc/naughty'
-   # => touch: cannot touch '/etc/naughty': Read-only file system   (exit 1)
-   ```
-2. **Network isolation** — with the default `--network none`, DNS/egress fail:
-   ```bash
-   ./mcp-box run shell -- bash -c 'curl -I https://google.com'
-   # => curl: (6) Could not resolve host: google.com               (exit 6)
-   ```
-3. **No privilege escalation** — `sudo` is not even present in the image:
-   ```bash
-   ./mcp-box run shell -- bash -c 'sudo -l'
-   # => bash: line 1: sudo: command not found                       (exit 127)
-   ```
-4. **Host UID/GID mapping** — the process is *you*, not root:
-   ```bash
-   ./mcp-box run shell -- bash -c 'id'
-   # => uid=<your uid> gid=<your gid> ...   (files in /workspace are owned by you)
-   ```
